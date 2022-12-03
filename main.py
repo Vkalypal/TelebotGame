@@ -1,6 +1,6 @@
 import telebot
 import random
-bot = telebot.TeleBot('*', parse_mode=None)
+bot = telebot.TeleBot('5888480014:AAFtgTg_lV9-oUuzmNIH0qNpGCBBL0uhwEA', parse_mode=None)
 
 
 class Creature:
@@ -78,20 +78,21 @@ def randomMonsters():
     return randM
 
 
-def attackPlayer(message, m):
+def attackPlayer(message, m, p):
     if (m.isDead() == True):
         return
     p.reduceHealth(m.damage)
     bot.send_message(message.chat.id, f'{m.name} наносит вам {m.damage} единиц урона.')
 
 
-def attackMonster(message, m):
+def attackMonster(message, m, p):
     if p.isDead() == True:
         return
     print('я бью ' + m.name)
     bot.send_message(message.chat.id, f'Вы бьете {m.name} и наносите {p.damage} единиц урона.')
     m.reduceHealth(p.damage)
-    bot.send_message(message.chat.id, f'Здоровье {m.name} = {m.health}')
+    if m.health > 0:
+        bot.send_message(message.chat.id, f'Здоровье {m.name} = {m.health}')
     if (m.isDead() == True):
         bot.send_message(message.chat.id, f'Вы убили {m.name}.')
         p.levelUp()
@@ -108,7 +109,7 @@ def attackMonster(message, m):
 
 
 
-def choiceBattle(message, monster):
+def choiceBattle(message, monster, p):
     print('Кого я встретил на самом деле ' + monster.name)
     if (p.isDead() != True and monster.isDead() != True):
         msg = message.text.lower()
@@ -118,11 +119,11 @@ def choiceBattle(message, monster):
                 print('ты сбежал от ' + monster.name)
                 monster.fullHealth()
                 send = bot.send_message(message.chat.id, 'Продолжим?')
-                bot.register_next_step_handler(send, battle)
+                bot.register_next_step_handler(send, battle, p)
                 return
             else:
                 bot.send_message(message.chat.id, 'Вам не удалось сбежать')
-                attackPlayer(message, monster)
+                attackPlayer(message, monster, p)
                 if p.isDead() == True:
                     bot.send_message(message.chat.id, 'ТЫ МЕРТВЕТС!!!')
                     bot.send_message(message.chat.id, f'Вы достигли {p.level} '
@@ -132,14 +133,14 @@ def choiceBattle(message, monster):
                     monster.fullHealth()
                     p.levelDowm()
                     p.nullGold()
-                    bot.register_next_step_handler(send, battle)
+                    bot.register_next_step_handler(send, battle, p)
                     #bot.stop_polling()
                     return
                 send = bot.send_message(message.chat.id, 'Бежать или драться?')
-                bot.register_next_step_handler(send, choiceBattle, monster)
+                bot.register_next_step_handler(send, choiceBattle, monster, p)
         if msg == 'драться':
-            attackMonster(message, monster)
-            attackPlayer(message, monster)
+            attackMonster(message, monster, p)
+            attackPlayer(message, monster, p)
             if p.isDead() == True:
                 bot.send_message(message.chat.id, 'ТЫ МЕРТВЕТС!!!')
                 bot.send_message(message.chat.id, f'Вы достигли {p.level} '
@@ -149,17 +150,17 @@ def choiceBattle(message, monster):
                 monster.fullHealth()
                 p.levelDowm()
                 p.nullGold()
-                bot.register_next_step_handler(send, battle)
+                bot.register_next_step_handler(send, battle, p)
                 #bot.stop_polling()
                 #bot.register_next_step_handler(message, playerisDead)
                 return
             if monster.isDead():
                 monster.fullHealth()
                 send = bot.send_message(message.chat.id, 'Продолжим?')
-                bot.register_next_step_handler(send, battle)
+                bot.register_next_step_handler(send, battle, p)
                 return
             send = bot.send_message(message.chat.id, 'Бежать или драться?')
-            bot.register_next_step_handler(send, choiceBattle, monster)
+            bot.register_next_step_handler(send, choiceBattle, monster, p)
     else:
         bot.send_message(message.chat.id, 'ТЫ МЕРТВЕТС!!!')
         bot.send_message(message.chat.id, f'Вы достигли {p.level} '
@@ -169,14 +170,13 @@ def choiceBattle(message, monster):
         monster.fullHealth()
         p.levelDowm()
         p.nullGold()
-        bot.register_next_step_handler(send, battle)
+        bot.register_next_step_handler(send, battle, p)
         #bot.stop_polling()
-
-
-p = Player('Nikita', '@', 10, 1, 0)
 
 @bot.message_handler(commands=['start'])
 def start(m, res=False):
+    print(m.chat.id)
+    p = Player(f'{str(m.chat.id)}', '@', 10, 1, 0)
     p.fullHealth()
     p.levelDowm()
     p.nullGold()
@@ -184,15 +184,17 @@ def start(m, res=False):
                                 'пишите "играть" без кавычек')
     bot.send_message(m.chat.id, 'Когда вас спросят БЕЖАТЬ ИЛИ ДРАТЬСЯ? '
                                 'НУЖНО НАПЕЧАТАТЬ БЕЖАТЬ ИЛИ ДРАТЬСЯ соответсвенно,'
-                                'если вы напишите что то другое, то ваша игра закончиться, '
+                                'если вы напишите что то другое, то ваша игра закончится, '
                                 'потому что пока нет обработки ввода')
     bot.send_message(m.chat.id, 'Если вы все таки ошиблись или вам стало интересно, '
                                 'что будет если я буду играть не по правилам, '
                                 'то напишите /start чтобы запустить бота заново')
     bot.send_message(m.chat.id, 'Цель игры - получить 20 уровень')
+    send = bot.send_message(m.chat.id, 'Готовы')
+    bot.register_next_step_handler(send, battle, p)
 
 @bot.message_handler(func=lambda message: message.text.lower() == 'играть')
-def battle(message):
+def battle(message, p):
     if (p.isDead() != True and p.hasWon() != True):
         bot.send_message(message.chat.id, 'Нет пути назад')
         monster = randomMonsters()
@@ -201,7 +203,7 @@ def battle(message):
         bot.send_message(message.chat.id, f'Здоровье {monster.name} {monster.health}')
         bot.send_message(message.chat.id, f'Ваше здоровье {p.health} .')
         send = bot.send_message(message.chat.id, 'Бежать или драться?')
-        bot.register_next_step_handler(send, choiceBattle, monster)
+        bot.register_next_step_handler(send, choiceBattle, monster, p)
     elif p.hasWon() == True:
         bot.send_message(message.chat.id, f'ВЫ ПОБЕДИЛЕ и заработали '
                                           f'{p.gold} монет.')
