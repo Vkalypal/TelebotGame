@@ -1,6 +1,7 @@
 import telebot
+from telebot import types
 import random
-bot = telebot.TeleBot('5888480014:AAFtgTg_lV9-oUuzmNIH0qNpGCBBL0uhwEA', parse_mode=None)
+bot = telebot.TeleBot('*', parse_mode=None)
 
 
 class Creature:
@@ -110,6 +111,10 @@ def attackMonster(message, m, p):
 
 
 def choiceBattle(message, monster, p):
+    keyboard_next = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard_next.row('Продолжим')
+    keyboard_dead = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard_dead.row('Естественно')
     print('Кого я встретил на самом деле ' + monster.name)
     if (p.isDead() != True and monster.isDead() != True):
         msg = message.text.lower()
@@ -118,7 +123,7 @@ def choiceBattle(message, monster, p):
                 bot.send_message(message.chat.id, 'Вы сбежали')
                 print('ты сбежал от ' + monster.name)
                 monster.fullHealth()
-                send = bot.send_message(message.chat.id, 'Продолжим?')
+                send = bot.send_message(message.chat.id, 'Продолжим?', reply_markup=keyboard_next)
                 bot.register_next_step_handler(send, battle, p)
                 return
             else:
@@ -128,7 +133,7 @@ def choiceBattle(message, monster, p):
                     bot.send_message(message.chat.id, 'ТЫ МЕРТВЕТС!!!')
                     bot.send_message(message.chat.id, f'Вы достигли {p.level} '
                             f'уровня и унесли с собой в могилу {p.gold} золотых.')
-                    send = bot.send_message(message.chat.id, 'Сыграем еще раз?')
+                    send = bot.send_message(message.chat.id, 'Сыграем еще раз?', reply_markup=keyboard_dead)
                     p.fullHealth()
                     monster.fullHealth()
                     p.levelDowm()
@@ -145,7 +150,7 @@ def choiceBattle(message, monster, p):
                 bot.send_message(message.chat.id, 'ТЫ МЕРТВЕТС!!!')
                 bot.send_message(message.chat.id, f'Вы достигли {p.level} '
                         f'уровня и унесли с собой в могилу {p.gold} золотых.')
-                send = bot.send_message(message.chat.id, 'Сыграем еще раз?')
+                send = bot.send_message(message.chat.id, 'Сыграем еще раз?', reply_markup=keyboard_dead)
                 p.fullHealth()
                 monster.fullHealth()
                 p.levelDowm()
@@ -156,7 +161,7 @@ def choiceBattle(message, monster, p):
                 return
             if monster.isDead():
                 monster.fullHealth()
-                send = bot.send_message(message.chat.id, 'Продолжим?')
+                send = bot.send_message(message.chat.id, 'Продолжим?', reply_markup=keyboard_next)
                 bot.register_next_step_handler(send, battle, p)
                 return
             send = bot.send_message(message.chat.id, 'Бежать или драться?')
@@ -165,7 +170,7 @@ def choiceBattle(message, monster, p):
         bot.send_message(message.chat.id, 'ТЫ МЕРТВЕТС!!!')
         bot.send_message(message.chat.id, f'Вы достигли {p.level} '
                 f'уровня и унесли с собой в могилу {p.gold} золотых.')
-        send = bot.send_message(message.chat.id, 'Сыграем еще раз?')
+        send = bot.send_message(message.chat.id, 'Сыграем еще раз?', reply_markup=keyboard_dead)
         p.fullHealth()
         monster.fullHealth()
         p.levelDowm()
@@ -175,11 +180,14 @@ def choiceBattle(message, monster, p):
 
 @bot.message_handler(commands=['start'])
 def start(m, res=False):
+    keyboard_start = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard_start.row('Погнали')
     print(m.chat.id)
     p = Player(f'{str(m.chat.id)}', '@', 10, 1, 0)
     p.fullHealth()
     p.levelDowm()
     p.nullGold()
+    bot.send_message(m.chat.id, f'Привет {m.from_user.first_name}.')
     bot.send_message(m.chat.id, 'ПРАВИЛА ИГРЫ! Чтобы начать играть '
                                 'пишите "играть" без кавычек')
     bot.send_message(m.chat.id, 'Когда вас спросят БЕЖАТЬ ИЛИ ДРАТЬСЯ? '
@@ -190,19 +198,22 @@ def start(m, res=False):
                                 'что будет если я буду играть не по правилам, '
                                 'то напишите /start чтобы запустить бота заново')
     bot.send_message(m.chat.id, 'Цель игры - получить 20 уровень')
-    send = bot.send_message(m.chat.id, 'Готовы')
+    send = bot.send_message(m.chat.id, 'Готовы?', reply_markup=keyboard_start)
     bot.register_next_step_handler(send, battle, p)
 
 @bot.message_handler(func=lambda message: message.text.lower() == 'играть')
 def battle(message, p):
+    keyboard_choice = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard_choice.row('Бежать', 'Драться')
     if (p.isDead() != True and p.hasWon() != True):
-        bot.send_message(message.chat.id, 'Нет пути назад')
+        #bot.send_message(message.chat.id, 'Нет пути назад')
         monster = randomMonsters()
         bot.send_message(message.chat.id, f'Вы встретили {monster.name}')
+                #reply_markup=telebot.types.ReplyKeyboardRemove()) # Удаляем предыдущую кнопку
         print('Вы встретили ' + monster.name + ' (' + monster.simbol + ')')
         bot.send_message(message.chat.id, f'Здоровье {monster.name} {monster.health}')
         bot.send_message(message.chat.id, f'Ваше здоровье {p.health} .')
-        send = bot.send_message(message.chat.id, 'Бежать или драться?')
+        send = bot.send_message(message.chat.id, 'Бежать или драться?', reply_markup=keyboard_choice)
         bot.register_next_step_handler(send, choiceBattle, monster, p)
     elif p.hasWon() == True:
         bot.send_message(message.chat.id, f'ВЫ ПОБЕДИЛЕ и заработали '
@@ -212,8 +223,8 @@ def battle(message, p):
         bot.stop_polling()
 
 
-#bot.infinity_polling()
-bot.polling(none_stop=True, interval=0)
-#if __name__ == '__main__':
-#    bot.skip_pending = True
-#    bot.polling()
+
+#bot.polling(none_stop=True, interval=0)
+if __name__ == '__main__':
+    bot.skip_pending = True
+    bot.polling()
