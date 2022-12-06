@@ -60,7 +60,7 @@ class Player(Creature):
         self._damage = 1
 
     def hasWon(self):
-        if self.__level == 20:
+        if self.__level == 3:
             return True
 
     @property
@@ -203,6 +203,8 @@ def start(m, res=False):
 
 @bot.message_handler(func=lambda message: message.text.lower() == 'играть')
 def battle(message, p):
+    keyboard_win = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard_win.row('Да')
     keyboard_choice = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
     keyboard_choice.row('Бежать', 'Драться')
     if (p.isDead() != True and p.hasWon() != True):
@@ -218,9 +220,50 @@ def battle(message, p):
     elif p.hasWon() == True:
         bot.send_message(message.chat.id, f'ВЫ ПОБЕДИЛЕ и заработали '
                                           f'{p.gold} монет.')
-        bot.stop_polling()
-    else:
-        bot.stop_polling()
+        with open('winners.txt', 'r', encoding='utf-8') as f:
+            for i in f:
+                data = i.split()
+                with open('winners_temp.txt', 'a', encoding='utf-8') as f_over:
+                    f_over.write(f'{data[0]} {data[1]} {data[2]} {data[3]} {data[4]}\n')
+        with open('winners.txt', 'w+', encoding='utf-8') as f:
+            f.seek(0)
+        count_user = 0
+        with open('winners_temp.txt', 'r', encoding='utf-8') as f_read:
+            for k in f_read:
+                data = k.split()
+                if data[1] == message.from_user.first_name and int(data[4]) < p.gold:
+                    count_user = count_user + 1
+                    data[4] = str(p.gold)
+                    with open('winners.txt', 'a', encoding='utf-8') as f_final:
+                        f_final.write(f'{data[0]} {data[1]} {data[2]} {data[3]} {data[4]}\n')
+                elif data[1] == message.from_user.first_name and int(data[4]) >= p.gold:
+                    with open('winners.txt', 'a', encoding='utf-8') as f_final:
+                        f_final.write(f'{data[0]} {data[1]} {data[2]} {data[3]} {data[4]}\n')
+                        count_user = count_user + 1
+                elif data[1] == message.from_user.first_name:
+                    count_user = count_user + 1
+                else:
+                    with open('winners.txt', 'a', encoding='utf-8') as f_final:
+                        f_final.write(f'{data[0]} {data[1]} {data[2]} {data[3]} {data[4]}\n')
+        if count_user == 0:
+            with open('winners.txt', 'a', encoding='utf-8') as f_final:
+                f_final.write(f'Игрок: {message.from_user.first_name} Количество золота: {p.gold}\n')
+
+        with open('winners_temp.txt', 'w+', encoding='utf-8') as f:
+            f.seek(0)
+        with open('winners.txt', encoding='utf-8') as f:
+            content = f.read()
+        bot.send_message(message.chat.id, f'Таблица успешных ребят:\n{content}')
+        send = bot.send_message(message.chat.id, f'Сыграем еще раз?\nДа или Да?', reply_markup=keyboard_win)
+        p.fullHealth()
+        #monster.fullHealth()
+        p.levelDowm()
+        p.nullGold()
+        bot.register_next_step_handler(send, battle, p)
+
+        #bot.stop_polling()
+    # else:
+    #     bot.stop_polling()
 
 
 
